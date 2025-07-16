@@ -1,5 +1,5 @@
+import 'package:apk/admin/admin.dart';
 import 'package:flutter/material.dart';
-import 'package:socket_io_client/socket_io_client.dart' as io;
 
 void main() {
   runApp(const PadelScoreboardApp());
@@ -11,516 +11,75 @@ class PadelScoreboardApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Marcador Pádel TV',
+      title: 'Pádel Pro Manager',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(),
-      home: const ScoreboardScreen(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const MainMenuScreen(),
+        '/scoreboard': (context) => const PadelScoreboardApp(),
+        '/admin': (context) => const AdminScreen(),
+      },
     );
   }
 }
 
-class ScoreboardScreen extends StatefulWidget {
-  const ScoreboardScreen({super.key});
-
-  @override
-  State<ScoreboardScreen> createState() => _ScoreboardScreenState();
-}
-
-class _ScoreboardScreenState extends State<ScoreboardScreen> {
-  late io.Socket socket;
-
-  // Datos del marcador
-  String bluePoints = '0';
-  String redPoints = "0";
-  int blueGames = 0;
-  int redGames = 0;
-  int blueSets = 0;
-  int redSets = 0;
-  int currentSet = 1;
-  int currentGame = 1;
-  String servingTeam = 'azul';
-  String matchStatus = 'En juego';
-
-  @override
-  void initState() {
-    super.initState();
-    connectToSocket();
-  }
-
-  void connectToSocket() {
-    socket = io.io('http://localhost:5000', <String, dynamic>{
-      'transports': ['websocket'],
-      'autoConnect': true,
-    });
-
-    socket.onConnect((_) {
-      print('Conectado al servidor WebSocket');
-      socket.emit('unirse_cancha', {'cancha_id': 1});
-    });
-
-    socket.on('actualizar_marcador', (data) {
-      print({data});
-      setState(() {
-        bluePoints = data['puntos']['azul'];
-        redPoints = data['puntos']['rojo'];
-        blueGames = data['juegos']['azul'];
-        redGames = data['juegos']['rojo'];
-        blueSets = data['sets']['azul'];
-        redSets = data['sets']['rojo'];
-        currentSet = data['setActual'];
-        currentGame = data['juegoActual'];
-        matchStatus = data['estadoPartido'];
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    socket.disconnect();
-    super.dispose();
-  }
+class MainMenuScreen extends StatelessWidget {
+  const MainMenuScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: OrientationBuilder(
-        builder: (context, orientation) {
-          final bool isPortrait = orientation == Orientation.portrait;
-
-          return Column(
-            children: [
-              // Header - Se mantiene igual en ambas orientaciones
-              Container(
-                color: Colors.black,
-                padding: const EdgeInsets.symmetric(
-                  vertical: 8,
-                  horizontal: 16,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'PÁDEL PRO',
-                      style: TextStyle(
-                        color: Colors.greenAccent,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    ),
-                    Text(
-                      'Set $currentSet | Juego $currentGame',
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    Row(
-                      children: [
-                        const Text('Saque: '),
-                        Text(
-                          servingTeam == 'azul' ? 'AZUL' : 'ROJO',
-                          style: TextStyle(
-                            color:
-                                servingTeam == 'azul'
-                                    ? Colors.blueAccent
-                                    : Colors.redAccent,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        if (servingTeam == 'azul')
-                          const ServingIndicator(color: Colors.blueAccent),
-                        if (servingTeam == 'rojo')
-                          const ServingIndicator(color: Colors.redAccent),
-                      ],
-                    ),
-                  ],
-                ),
+      backgroundColor: Colors.grey[900],
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'PÁDEL PRO',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.greenAccent,
               ),
-
-              // Contenido principal - Se adapta según la orientación
-              Expanded(
-                child:
-                    isPortrait
-                        ? _buildPortraitLayout()
-                        : _buildLandscapeLayout(),
-              ),
-
-              // Barra de estado - Se mantiene igual en ambas orientaciones
-              Container(
-                color: Colors.black,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(
-                  matchStatus,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildLandscapeLayout() {
-    return Row(
-      children: [
-        // Equipo Azul
-        Expanded(
-          child: Container(
-            color:
-                servingTeam == 'azul'
-                    ? Colors.blue[900]?.withOpacity(0.3)
-                    : Colors.grey[800],
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'EQUIPO AZUL',
-                  style: TextStyle(
-                    color: Colors.blueAccent,
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // Indicadores de sets
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(3, (index) {
-                    return Container(
-                      width: 40,
-                      height: 40,
-                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color:
-                            blueSets > index ? Colors.green : Colors.grey[700],
-                      ),
-                      child: Center(
-                        child: Text(
-                          '${index + 1}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-                const SizedBox(height: 40),
-                // Puntos
-                Text(
-                  '$bluePoints',
-                  style: const TextStyle(
-                    fontSize: 120,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blueAccent,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // Juegos
-                Text(
-                  'Juegos: $blueGames',
-                  style: const TextStyle(fontSize: 24, color: Colors.grey),
-                ),
-              ],
             ),
-          ),
-        ),
-
-        // Divisor
-        Container(
-          width: 2,
-          color: Colors.grey[800],
-          margin: const EdgeInsets.symmetric(vertical: 40),
-        ),
-
-        // Equipo Rojo
-        Expanded(
-          child: Container(
-            color:
-                servingTeam == 'rojo'
-                    ? Colors.red[900]?.withOpacity(0.3)
-                    : Colors.grey[800],
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'EQUIPO ROJO',
-                  style: TextStyle(
-                    color: Colors.redAccent,
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                  ),
+            const SizedBox(height: 50),
+            SizedBox(
+              width: 200,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/scoreboard');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[800],
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                const SizedBox(height: 20),
-                // Indicadores de sets
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(3, (index) {
-                    return Container(
-                      width: 40,
-                      height: 40,
-                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color:
-                            redSets > index ? Colors.green : Colors.grey[700],
-                      ),
-                      child: Center(
-                        child: Text(
-                          '${index + 1}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
+                child: const Text(
+                  'VER MARCADOR',
+                  style: TextStyle(fontSize: 18),
                 ),
-                const SizedBox(height: 40),
-                // Puntos
-                Text(
-                  '$redPoints',
-                  style: const TextStyle(
-                    fontSize: 120,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.redAccent,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // Juegos
-                Text(
-                  'Juegos: $redGames',
-                  style: const TextStyle(fontSize: 24, color: Colors.grey),
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPortraitLayout() {
-    return Expanded(
-      // Añadimos Expanded aquí
-      child: SingleChildScrollView(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight:
-                MediaQuery.of(context).size.height -
-                kToolbarHeight - // Altura del AppBar si lo tuvieras
-                100, // Ajuste para header y footer
-          ),
-          child: Column(
-            mainAxisAlignment:
-                MainAxisAlignment.spaceEvenly, // Distribuye el espacio
-            children: [
-              // Equipo Azul
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                color:
-                    servingTeam == 'azul'
-                        ? Colors.blue[900]?.withOpacity(0.3)
-                        : Colors.grey[800],
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'EQUIPO AZUL',
-                      style: TextStyle(
-                        color: Colors.blueAccent,
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Indicadores de sets
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(3, (index) {
-                        return Container(
-                          width: 36,
-                          height: 36,
-                          margin: const EdgeInsets.symmetric(horizontal: 6),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color:
-                                blueSets > index
-                                    ? Colors.green
-                                    : Colors.grey[700],
-                          ),
-                          child: Center(
-                            child: Text(
-                              '${index + 1}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 30),
-                    // Puntos
-                    Text(
-                      '$bluePoints',
-                      style: const TextStyle(
-                        fontSize: 80,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blueAccent,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Juegos
-                    Text(
-                      'Juegos: $blueGames',
-                      style: const TextStyle(fontSize: 20, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
+            const SizedBox(height: 20),
+            SizedBox(
+              width: 200,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/admin');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey[800],
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: const Text(
+                  'ADMINISTRACIÓN',
+                  style: TextStyle(fontSize: 18),
                 ),
               ),
-
-              // Divisor
-              Container(
-                height: 2,
-                color: Colors.grey[800],
-                margin: const EdgeInsets.symmetric(vertical: 8),
-              ),
-
-              // Equipo Rojo
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                color:
-                    servingTeam == 'rojo'
-                        ? Colors.red[900]?.withOpacity(0.3)
-                        : Colors.grey[800],
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'EQUIPO ROJO',
-                      style: TextStyle(
-                        color: Colors.redAccent,
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Indicadores de sets
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(3, (index) {
-                        return Container(
-                          width: 36,
-                          height: 36,
-                          margin: const EdgeInsets.symmetric(horizontal: 6),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color:
-                                redSets > index
-                                    ? Colors.green
-                                    : Colors.grey[700],
-                          ),
-                          child: Center(
-                            child: Text(
-                              '${index + 1}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 30),
-                    // Puntos
-                    Text(
-                      '$redPoints',
-                      style: const TextStyle(
-                        fontSize: 80,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.redAccent,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Juegos
-                    Text(
-                      'Juegos: $redGames',
-                      style: const TextStyle(fontSize: 20, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
-  }
-}
-
-class ServingIndicator extends StatefulWidget {
-  final Color color;
-
-  const ServingIndicator({super.key, required this.color});
-
-  @override
-  State<ServingIndicator> createState() => _ServingIndicatorState();
-}
-
-class _ServingIndicatorState extends State<ServingIndicator>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final scale = 1.0 + (_controller.value * 0.3);
-        final opacity = 1.0 - (_controller.value * 0.3);
-
-        return Transform.scale(
-          scale: scale,
-          child: Opacity(
-            opacity: opacity,
-            child: Container(
-              width: 12,
-              height: 12,
-              margin: const EdgeInsets.only(left: 4),
-              decoration: BoxDecoration(
-                color: widget.color,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 }
