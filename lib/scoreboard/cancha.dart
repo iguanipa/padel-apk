@@ -2,25 +2,187 @@ import 'package:flutter/material.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 void main() {
-  runApp(const PadelScoreboardApp());
+  runApp(const RouteApp());
 }
 
-class PadelScoreboardApp extends StatelessWidget {
-  const PadelScoreboardApp({super.key});
+class RouteApp extends StatelessWidget {
+  const RouteApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Marcador Pádel TV',
+      title: 'Pádel Pro Manager',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(),
-      home: const ScoreboardScreen(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const MainMenuScreen(),
+        '/select-court': (context) => const SelectCourtScreen(),
+        '/scoreboard': (context) {
+          final courtId = ModalRoute.of(context)!.settings.arguments as int;
+          return ScoreboardScreen(courtId: courtId);
+        },
+      },
+    );
+  }
+}
+
+class MainMenuScreen extends StatelessWidget {
+  const MainMenuScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[900],
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'PÁDEL PRO',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.greenAccent,
+              ),
+            ),
+            const SizedBox(height: 50),
+            SizedBox(
+              width: 200,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/select-court');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[800],
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: const Text(
+                  'VER MARCADOR',
+                  style: TextStyle(fontSize: 18),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class SelectCourtScreen extends StatefulWidget {
+  const SelectCourtScreen({super.key});
+
+  @override
+  State<SelectCourtScreen> createState() => _SelectCourtScreenState();
+}
+
+class _SelectCourtScreenState extends State<SelectCourtScreen> {
+  List<Map<String, dynamic>> courts = [];
+  bool loading = true;
+  String? selectedCourt;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchCourts();
+  }
+
+  Future<void> fetchCourts() async {
+    setState(() => loading = true);
+    try {
+      // Implementar llamada real a la API aquí
+      await Future.delayed(const Duration(seconds: 1));
+      setState(() {
+        courts = [
+          {'id': 1, 'name': 'Cancha Central'},
+          {'id': 2, 'name': 'Cancha Norte'},
+          {'id': 3, 'name': 'Cancha Sur'},
+        ];
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al cargar canchas: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Seleccionar Cancha')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            DropdownButtonFormField<String>(
+              value: selectedCourt,
+              decoration: InputDecoration(
+                labelText: 'Seleccionar Cancha',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              items: [
+                if (loading)
+                  const DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('Cargando canchas...'),
+                  )
+                else if (courts.isEmpty)
+                  const DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('No hay canchas disponibles'),
+                  )
+                else
+                  const DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('Seleccione una cancha'),
+                  ),
+                ...courts.map((court) {
+                  return DropdownMenuItem<String>(
+                    value: court['id'].toString(),
+                    child: Text('Cancha #${court['id']} - ${court['name']}'),
+                  );
+                }).toList(),
+              ],
+              onChanged: (value) {
+                setState(() => selectedCourt = value);
+              },
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed:
+                  selectedCourt == null
+                      ? null
+                      : () {
+                        Navigator.pushNamed(
+                          context,
+                          '/scoreboard',
+                          arguments: int.parse(selectedCourt!),
+                        );
+                      },
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 50),
+              ),
+              child: const Text('Ver Marcador'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
 class ScoreboardScreen extends StatefulWidget {
-  const ScoreboardScreen({super.key});
+  final int courtId;
+
+  const ScoreboardScreen({super.key, required this.courtId});
 
   @override
   State<ScoreboardScreen> createState() => _ScoreboardScreenState();
@@ -55,23 +217,27 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
 
     socket.onConnect((_) {
       print('Conectado al servidor WebSocket');
-      socket.emit('unirse_cancha', {'cancha_id': 1});
+      socket.emit('unirse_cancha', {'cancha_id': widget.courtId});
     });
 
     socket.on('actualizar_marcador', (data) {
-      print({data});
+      print('Datos recibidos: $data');
       setState(() {
-        bluePoints = data['puntos']['azul'];
-        redPoints = data['puntos']['rojo'];
+        bluePoints = data['puntos']['azul'].toString();
+        redPoints = data['puntos']['rojo'].toString();
         blueGames = data['juegos']['azul'];
         redGames = data['juegos']['rojo'];
         blueSets = data['sets']['azul'];
         redSets = data['sets']['rojo'];
         currentSet = data['setActual'];
         currentGame = data['juegoActual'];
+        servingTeam = data['servicio'];
         matchStatus = data['estadoPartido'];
       });
     });
+
+    socket.onDisconnect((_) => print('Desconectado del servidor WebSocket'));
+    socket.onError((error) => print('Error de WebSocket: $error'));
   }
 
   @override
@@ -89,7 +255,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
 
           return Column(
             children: [
-              // Header - Se mantiene igual en ambas orientaciones
+              // Header
               Container(
                 color: Colors.black,
                 padding: const EdgeInsets.symmetric(
@@ -108,7 +274,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
                       ),
                     ),
                     Text(
-                      'Set $currentSet | Juego $currentGame',
+                      'Cancha #${widget.courtId} | Set $currentSet | Juego $currentGame',
                       style: const TextStyle(fontSize: 14),
                     ),
                     Row(
@@ -134,7 +300,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
                 ),
               ),
 
-              // Contenido principal - Se adapta según la orientación
+              // Contenido principal
               Expanded(
                 child:
                     isPortrait
@@ -142,7 +308,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
                         : _buildLandscapeLayout(),
               ),
 
-              // Barra de estado - Se mantiene igual en ambas orientaciones
+              // Barra de estado
               Container(
                 color: Colors.black,
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -169,7 +335,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
           child: Container(
             color:
                 servingTeam == 'azul'
-                    ? Colors.blue[900]?.withOpacity(0.3)
+                    ? Colors.blue[900]!.withOpacity(0.3)
                     : Colors.grey[800],
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -211,7 +377,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
                 const SizedBox(height: 40),
                 // Puntos
                 Text(
-                  '$bluePoints',
+                  bluePoints,
                   style: const TextStyle(
                     fontSize: 120,
                     fontWeight: FontWeight.bold,
@@ -241,7 +407,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
           child: Container(
             color:
                 servingTeam == 'rojo'
-                    ? Colors.red[900]?.withOpacity(0.3)
+                    ? Colors.red[900]!.withOpacity(0.3)
                     : Colors.grey[800],
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -283,7 +449,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
                 const SizedBox(height: 40),
                 // Puntos
                 Text(
-                  '$redPoints',
+                  redPoints,
                   style: const TextStyle(
                     fontSize: 120,
                     fontWeight: FontWeight.bold,
@@ -306,18 +472,13 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
 
   Widget _buildPortraitLayout() {
     return Expanded(
-      // Añadimos Expanded aquí
       child: SingleChildScrollView(
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            minHeight:
-                MediaQuery.of(context).size.height -
-                kToolbarHeight - // Altura del AppBar si lo tuvieras
-                100, // Ajuste para header y footer
+            minHeight: MediaQuery.of(context).size.height - 120,
           ),
           child: Column(
-            mainAxisAlignment:
-                MainAxisAlignment.spaceEvenly, // Distribuye el espacio
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               // Equipo Azul
               Container(
@@ -325,7 +486,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 color:
                     servingTeam == 'azul'
-                        ? Colors.blue[900]?.withOpacity(0.3)
+                        ? Colors.blue[900]!.withOpacity(0.3)
                         : Colors.grey[800],
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -369,7 +530,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
                     const SizedBox(height: 30),
                     // Puntos
                     Text(
-                      '$bluePoints',
+                      bluePoints,
                       style: const TextStyle(
                         fontSize: 80,
                         fontWeight: FontWeight.bold,
@@ -400,7 +561,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 color:
                     servingTeam == 'rojo'
-                        ? Colors.red[900]?.withOpacity(0.3)
+                        ? Colors.red[900]!.withOpacity(0.3)
                         : Colors.grey[800],
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -444,7 +605,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
                     const SizedBox(height: 30),
                     // Puntos
                     Text(
-                      '$redPoints',
+                      redPoints,
                       style: const TextStyle(
                         fontSize: 80,
                         fontWeight: FontWeight.bold,
