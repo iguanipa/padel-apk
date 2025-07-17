@@ -1,4 +1,7 @@
+import 'package:apk/services/config_service.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert'; // Para jsonDecode
 
 class SelectCourtScreen extends StatefulWidget {
   const SelectCourtScreen({super.key});
@@ -20,23 +23,46 @@ class _SelectCourtScreenState extends State<SelectCourtScreen> {
 
   Future<void> _fetchCourts() async {
     setState(() => loading = true);
+
     try {
-      // Implementar llamada real a la API aquí
-      await Future.delayed(const Duration(seconds: 1));
-      setState(() {
-        courts = [
-          {'id': 1, 'name': 'Cancha Central'},
-          {'id': 2, 'name': 'Cancha Norte'},
-          {'id': 3, 'name': 'Cancha Sur'},
-        ];
-      });
+      // Obtener la URL base desde ConfigService
+      final apiUrl = await ConfigService.getApiUrl();
+      final url = Uri.parse('$apiUrl/game/get-courts');
+
+      final response = await http.get(
+        url,
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        if (data is List) {
+          setState(() {
+            courts = List<Map<String, dynamic>>.from(data);
+          });
+        } else if (data['courts'] != null) {
+          setState(() {
+            courts = List<Map<String, dynamic>>.from(data['courts']);
+          });
+        } else {
+          throw Exception('Formato de respuesta inválido');
+        }
+      } else {
+        throw Exception('Error al cargar canchas: ${response.statusCode}');
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al cargar canchas: $e'),
+          content: Text('Error al cargar canchas: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
+
+      // Opcional: Mostrar datos de prueba si hay error
+      setState(() {
+        courts = [];
+      });
     } finally {
       setState(() => loading = false);
     }

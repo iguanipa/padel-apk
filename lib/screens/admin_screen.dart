@@ -1,3 +1,4 @@
+import 'package:apk/services/config_service.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -49,9 +50,8 @@ class _AdminScreenState extends State<AdminScreen>
     });
 
     try {
-      final response = await http.get(
-        Uri.parse('http://localhost:5000/game/get-courts'),
-      );
+      final apiUrl = await ConfigService.getApiUrl();
+      final response = await http.get(Uri.parse('$apiUrl/game/get-courts'));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -81,10 +81,9 @@ class _AdminScreenState extends State<AdminScreen>
     });
 
     try {
+      final apiUrl = await ConfigService.getApiUrl();
       final response = await http.post(
-        Uri.parse(
-          'http://localhost:5000/game/cancha/$selectedCourt/reset?confirm=true',
-        ),
+        Uri.parse('$apiUrl/game/cancha/$selectedCourt/reset?confirm=true'),
       );
 
       if (response.statusCode == 200) {
@@ -153,10 +152,9 @@ class _AdminScreenState extends State<AdminScreen>
         },
       };
 
+      final apiUrl = await ConfigService.getApiUrl();
       final response = await http.post(
-        Uri.parse(
-          'http://localhost:5000/game/cancha/${initData['court_id']}/initialize',
-        ),
+        Uri.parse('$apiUrl/game/cancha/${initData['court_id']}/initialize'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(payload),
       );

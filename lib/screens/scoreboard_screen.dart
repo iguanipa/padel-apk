@@ -1,3 +1,4 @@
+import 'package:apk/services/config_service.dart';
 import 'package:flutter/material.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:http/http.dart' as http;
@@ -42,8 +43,9 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
 
   Future<void> _updatePoint(String color, int signal) async {
     try {
+      final apiUrl = await ConfigService.getApiUrl();
       final response = await http.post(
-        Uri.parse('http://localhost:5000/game/cancha/${widget.courtId}/punto'),
+        Uri.parse('$apiUrl/game/cancha/${widget.courtId}/punto'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'color': color, 'signal': signal}),
       );
@@ -61,8 +63,9 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
   Future<void> _loadInitialData() async {
     try {
       // 1. Cargar datos iniciales desde la API
+      final apiUrl = await ConfigService.getApiUrl();
       final response = await http.get(
-        Uri.parse('http://localhost:5000/game/cancha/${widget.courtId}'),
+        Uri.parse('$apiUrl/game/cancha/${widget.courtId}'),
       );
 
       if (response.statusCode == 200) {

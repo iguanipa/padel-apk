@@ -53,6 +53,25 @@ class MenuScreen extends StatelessWidget {
                 ),
               ),
             ),
+            // Actualiza tu MenuScreen
+            // Agrega este botón junto a los otros en el Column
+            const SizedBox(height: 20),
+            SizedBox(
+              width: 200,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/config-api');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple[800],
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: const Text(
+                  'CONFIGURAR API',
+                  style: TextStyle(fontSize: 18),
+                ),
+              ),
+            ),
           ],
         ),
       ),
